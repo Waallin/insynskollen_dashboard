@@ -18,68 +18,181 @@ Coded by www.creative-tim.com
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
-import MDAvatar from "components/MDAvatar";
 import MDBadge from "components/MDBadge";
+import useDatabaseStore from "stores/useDatabaseStore";
 
 // Images
-import team2 from "assets/images/team-2.jpg";
-import team3 from "assets/images/team-3.jpg";
-import team4 from "assets/images/team-4.jpg";
 import useUsersStore from "stores/UseUsersStore";
 
 export default function data() {
   const { users, setUsers } = useUsersStore();
+  const { version } = useDatabaseStore();
 
-  console.log(users);
-  const Author = ({ image, name, email }) => (
+  const sortedUsers =
+    users?.sort(
+      (a, b) => new Date(b.createdAt?.seconds * 1000) - new Date(a.createdAt?.seconds * 1000)
+    ) || [];
+
+  function dateConverter(timestamp) {
+    if (!timestamp || !timestamp.seconds) return { text: "N/A", color: "text" };
+    const newDate = new Date(timestamp.seconds * 1000);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Reset time to compare only dates
+    const newDateOnly = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate());
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const yesterdayOnly = new Date(
+      yesterday.getFullYear(),
+      yesterday.getMonth(),
+      yesterday.getDate()
+    );
+
+    if (newDateOnly.getTime() === todayOnly.getTime()) {
+      return { text: "Idag", color: "success" };
+    } else if (newDateOnly.getTime() === yesterdayOnly.getTime()) {
+      return { text: "Igår", color: "warning" };
+    } else {
+      const diffTime = Math.abs(todayOnly - newDateOnly);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return { text: `${diffDays} dagar sedan`, color: "text" };
+    }
+  }
+
+  function getLastActiveDays(timestamp) {
+    if (!timestamp || !timestamp.seconds) return { text: "Okänd", color: "text" };
+    const lastActive = new Date(timestamp.seconds * 1000);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Reset time to compare only dates
+    const lastActiveOnly = new Date(
+      lastActive.getFullYear(),
+      lastActive.getMonth(),
+      lastActive.getDate()
+    );
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const yesterdayOnly = new Date(
+      yesterday.getFullYear(),
+      yesterday.getMonth(),
+      yesterday.getDate()
+    );
+
+    if (lastActiveOnly.getTime() === todayOnly.getTime()) {
+      return { text: "Idag", color: "success" };
+    } else if (lastActiveOnly.getTime() === yesterdayOnly.getTime()) {
+      return { text: "Igår", color: "warning" };
+    } else {
+      const diffTime = Math.abs(todayOnly - lastActiveOnly);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return { text: `${diffDays} dagar sedan`, color: "text" };
+    }
+  }
+
+  function getPlatformIcon(platform) {
+    switch (platform?.toLowerCase()) {
+      case "ios":
+        return "📱";
+      case "android":
+        return "🤖";
+      default:
+        return "💻";
+    }
+  }
+
+  const Author = ({ name, email, platform }) => (
     <MDBox display="flex" alignItems="center" lineHeight={1}>
       <MDBox ml={2} lineHeight={1}>
         <MDTypography display="block" variant="button" fontWeight="medium">
-          {name}
+          {name || "Anonym användare"}
         </MDTypography>
-        <MDTypography variant="caption">{email}</MDTypography>
+        <MDTypography variant="caption" color="text">
+          {email}
+        </MDTypography>
       </MDBox>
     </MDBox>
   );
 
-  const Job = ({ title, description }) => (
-    <MDBox lineHeight={1} textAlign="left">
-      <MDTypography display="block" variant="caption" color="text" fontWeight="medium">
-        {title}
-      </MDTypography>
-      <MDTypography variant="caption">{description}</MDTypography>
-    </MDBox>
-  );
+  const SubscriptionInfo = ({ revenueCatCustomerInfo }) => {
+    if (!revenueCatCustomerInfo?.activeSubscriptions?.length) {
+      return (
+        <MDBadge badgeContent="Ingen prenumeration" color="warning" variant="gradient" size="sm" />
+      );
+    }
+
+    return (
+      <MDBadge badgeContent="Aktiv prenumeration" color="success" variant="gradient" size="sm" />
+    );
+  };
 
   return {
     columns: [
-      { Header: "author", accessor: "author", width: "45%", align: "left" },
-      { Header: "joined", accessor: "employed", align: "right" },
-      { Header: "games", accessor: "games", align: "right" },
-      { Header: "action", accessor: "action", align: "right" },
+      { Header: "Användare", accessor: "author", width: "30%", align: "left" },
+      { Header: "Registrerad", accessor: "registered", width: "12%", align: "center" },
+      { Header: "Premium", accessor: "subscription", width: "15%", align: "center" },
+      { Header: "Senast aktiv", accessor: "lastActive", width: "12%", align: "center" },
+      { Header: "Version", accessor: "version", width: "8%", align: "center" },
+      { Header: "Platform", accessor: "platform", width: "15%", align: "center" },
+      { Header: "Åtgärd", accessor: "action", width: "8%", align: "center" },
     ],
 
-    rows: users.map((user) => ({
-      author: <Author image={team2} name={user.UserName} email={user.Email} />,
-      function: <Job title="Manager" description="Organization" />,
-      status: (
-        <MDBox ml={-1}>
-          <MDBadge badgeContent="online" color="success" variant="gradient" size="sm" />
-        </MDBox>
+    rows: sortedUsers.map((user) => ({
+      author: (
+        <Author name={user.email?.split("@")[0]} email={user.email} platform={user.platform} />
       ),
-      employed: (
-        <MDTypography component="a" href="#" variant="caption" color="text" fontWeight="medium">
-          23/04/18
-        </MDTypography>
+      registered: (
+        <MDBadge
+          badgeContent={dateConverter(user.createdAt).text}
+          color={dateConverter(user.createdAt).color}
+          variant="gradient"
+          size="sm"
+        />
       ),
-      games: (
-        <MDTypography component="a" href="#" variant="caption" color="text" fontWeight="medium">
-          {user.GameRooms.length}
-        </MDTypography>
+      subscription: <SubscriptionInfo revenueCatCustomerInfo={user.revenueCatCustomerInfo} />,
+      lastActive: (
+        <MDBadge
+          badgeContent={getLastActiveDays(user.lastLoggedIn).text}
+          color={getLastActiveDays(user.lastLoggedIn).color}
+          variant="gradient"
+          size="sm"
+        />
+      ),
+      version: (
+        <MDBadge
+          badgeContent={user.version || "Okänd"}
+          color={!user.version ? "info" : user.version === version ? "success" : "warning"}
+          variant="gradient"
+          size="sm"
+        />
+      ),
+      platform: (
+        <MDBadge
+          badgeContent={user.platform || "Okänd"}
+          color={
+            !user.platform || user.platform === "Okänd"
+              ? "info"
+              : user.platform?.toLowerCase() === "ios"
+              ? "success"
+              : user.platform?.toLowerCase() === "android"
+              ? "warning"
+              : "text"
+          }
+          variant="gradient"
+          size="sm"
+        />
       ),
       action: (
-        <MDTypography component="a" href="#" variant="caption" color="text" fontWeight="medium">
-          Edit
+        <MDTypography
+          component="a"
+          href="#"
+          variant="caption"
+          color="primary"
+          fontWeight="medium"
+          sx={{ cursor: "pointer" }}
+        >
+          Redigera
         </MDTypography>
       ),
     })),

@@ -32,24 +32,77 @@ import reportsBarChartData from "layouts/dashboard/data/reportsBarChartData";
 import reportsLineChartData from "layouts/dashboard/data/reportsLineChartData";
 
 // Dashboard components
-import Projects from "layouts/dashboard/components/Projects";
-import OrdersOverview from "layouts/dashboard/components/OrdersOverview";
+import RecentUsers from "layouts/dashboard/components/RecentUsers";
+import UserActivity from "layouts/dashboard/components/UserActivity";
 import useUsersStore from "stores/UseUsersStore";
-import useGamesStore from "stores/UseGamesStore";
+import useDatabaseStore from "stores/useDatabaseStore";
 import { useEffect } from "react";
+
 function Dashboard() {
   const { sales, tasks } = reportsLineChartData;
   const { users, setUsers } = useUsersStore();
-  const { games, setGames } = useGamesStore();
+  console.log("🚀 ~ Dashboard ~ users:", users);
+  const { version } = useDatabaseStore();
 
-  const usersToday = users.filter((user) => {
-    const userDate = new Date(user.CreatedAt).toDateString(); // Konvertera CreatedAt till datum och ta bort tiden
-    const todayDate = new Date().toDateString(); // Få dagens datum som en sträng
+  // Beräkna statistik
+  const usersToday =
+    users?.filter((user) => {
+      if (!user.createdAt?.seconds) return false;
+      const userDate = new Date(user.createdAt.seconds * 1000).toDateString();
+      const todayDate = new Date().toDateString();
+      return userDate === todayDate;
+    }) || [];
 
-    return userDate === todayDate;
-  });
+  const usersYesterday =
+    users?.filter((user) => {
+      if (!user.createdAt?.seconds) return false;
+      const userDate = new Date(user.createdAt.seconds * 1000).toDateString();
+      const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+      return userDate === yesterdayDate;
+    }) || [];
 
-  console.log(games);
+  const premiumUsers =
+    users?.filter(
+      (user) => user?.revenueCatCustomerInfo?.entitlements?.active?.premium?.isActive === true
+    ) || [];
+  console.log("🚀 ~ Dashboard ~ premiumUsers:", premiumUsers);
+  const activeUsers =
+    users?.filter((user) => {
+      if (!user.lastLoggedIn?.seconds) return false;
+      const lastActive = new Date(user.lastLoggedIn.seconds * 1000);
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      return lastActive > sevenDaysAgo;
+    }) || [];
+
+  const iosUsers = users?.filter((user) => user.platform?.toLowerCase() === "ios") || [];
+  const androidUsers = users?.filter((user) => user.platform?.toLowerCase() === "android") || [];
+
+  const usersWithLatestVersion = users?.filter((user) => user.version === version) || [];
+  const usersWithNotifications = users?.filter((user) => user.notificationsEnabled === true) || [];
+
+  // Nya premium-användare (premium-användare som registrerade sig idag)
+  const newPremiumUsers =
+    premiumUsers?.filter((user) => {
+      if (!user.createdAt?.seconds) return false;
+      const userDate = new Date(user.createdAt.seconds * 1000).toDateString();
+      const todayDate = new Date().toDateString();
+      return userDate === todayDate;
+    }) || [];
+
+  // Nya premium-användare igår
+  const newPremiumUsersYesterday =
+    premiumUsers?.filter((user) => {
+      if (!user.createdAt?.seconds) return false;
+      const userDate = new Date(user.createdAt.seconds * 1000).toDateString();
+      const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+      return userDate === yesterdayDate;
+    }) || [];
+
+  // Beräkna procentuell tillväxt
+  const userGrowthPercentage =
+    usersYesterday.length > 0
+      ? Math.round(((usersToday.length - usersYesterday.length) / usersYesterday.length) * 100)
+      : 0;
 
   return (
     <DashboardLayout>
@@ -59,28 +112,14 @@ function Dashboard() {
           <Grid item xs={12} md={6} lg={3}>
             <MDBox mb={1.5}>
               <ComplexStatisticsCard
-                color="dark"
-                icon="weekend"
-                title="Games"
-                count={games?.length}
+                color="info"
+                icon="people"
+                title="Totala användare"
+                count={users?.length || 0}
                 percentage={{
-                  color: "success",
-                  amount: "+5",
-                  label: "today",
-                }}
-              />
-            </MDBox>
-          </Grid>
-          <Grid item xs={12} md={6} lg={3}>
-            <MDBox mb={1.5}>
-              <ComplexStatisticsCard
-                icon="leaderboard"
-                title="New Users Today"
-                count={usersToday?.length}
-                percentage={{
-                  color: "success",
-                  amount: users?.length,
-                  label: "users total",
+                  color: userGrowthPercentage >= 0 ? "success" : "error",
+                  amount: `${userGrowthPercentage > 0 ? "+" : ""}${userGrowthPercentage}%`,
+                  label: "tillväxt från igår",
                 }}
               />
             </MDBox>
@@ -89,13 +128,29 @@ function Dashboard() {
             <MDBox mb={1.5}>
               <ComplexStatisticsCard
                 color="success"
-                icon="store"
-                title="Revenue"
-                count="34k"
+                icon="trending_up"
+                title="Premium-användare"
+                count={premiumUsers.length}
                 percentage={{
                   color: "success",
-                  amount: "+1%",
-                  label: "than yesterday",
+                  amount:
+                    users?.length > 0 ? Math.round((premiumUsers.length / users.length) * 100) : 0,
+                  label: "% av totala användare",
+                }}
+              />
+            </MDBox>
+          </Grid>
+          <Grid item xs={12} md={6} lg={3}>
+            <MDBox mb={1.5}>
+              <ComplexStatisticsCard
+                color="warning"
+                icon="online_prediction"
+                title="Aktiva användare"
+                count={activeUsers.length}
+                percentage={{
+                  color: "info",
+                  amount: "senaste 7 dagar",
+                  label: "",
                 }}
               />
             </MDBox>
@@ -104,13 +159,16 @@ function Dashboard() {
             <MDBox mb={1.5}>
               <ComplexStatisticsCard
                 color="primary"
-                icon="person_add"
-                title="Followers"
-                count="+91"
+                icon="smartphone"
+                title="Senaste version"
+                count={usersWithLatestVersion.length}
                 percentage={{
-                  color: "success",
-                  amount: "",
-                  label: "Just updated",
+                  color: usersWithLatestVersion.length === users?.length ? "success" : "warning",
+                  amount:
+                    users?.length > 0
+                      ? Math.round((usersWithLatestVersion.length / users.length) * 100)
+                      : 0,
+                  label: "% har senaste version",
                 }}
               />
             </MDBox>
@@ -122,10 +180,20 @@ function Dashboard() {
               <MDBox mb={3}>
                 <ReportsBarChart
                   color="info"
-                  title="website views"
-                  description="Last Campaign Performance"
-                  date="campaign sent 2 days ago"
-                  chart={reportsBarChartData}
+                  title="Plattformsfördelning"
+                  description={`${iosUsers.length} iOS, ${androidUsers.length} Android`}
+                  date="användare per plattform"
+                  chart={{
+                    labels: ["iOS", "Android", "Okänd"],
+                    datasets: {
+                      label: "Användare",
+                      data: [
+                        iosUsers.length,
+                        androidUsers.length,
+                        (users?.length || 0) - iosUsers.length - androidUsers.length,
+                      ],
+                    },
+                  }}
                 />
               </MDBox>
             </Grid>
@@ -133,25 +201,57 @@ function Dashboard() {
               <MDBox mb={3}>
                 <ReportsLineChart
                   color="success"
-                  title="daily sales"
+                  title="Nya användare"
                   description={
                     <>
-                      (<strong>+15%</strong>) increase in today sales.
+                      <strong>{usersToday.length}</strong> nya användare idag
                     </>
                   }
-                  date="updated 4 min ago"
-                  chart={sales}
+                  date="registreringar"
+                  chart={{
+                    labels: ["6 dagar", "5 dagar", "4 dagar", "3 dagar", "2 dagar", "Igår", "Idag"],
+                    datasets: {
+                      label: "Nya användare",
+                      data: [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        usersYesterday.length,
+                        usersToday.length, // Du kan lägga till mer historisk data här
+                      ],
+                    },
+                  }}
                 />
               </MDBox>
             </Grid>
             <Grid item xs={12} md={6} lg={4}>
               <MDBox mb={3}>
                 <ReportsLineChart
-                  color="dark"
-                  title="completed tasks"
-                  description="Last Campaign Performance"
-                  date="just updated"
-                  chart={tasks}
+                  color="warning"
+                  title="Nya premium-användare"
+                  description={
+                    <>
+                      <strong>{newPremiumUsers.length}</strong> nya premium-användare idag
+                    </>
+                  }
+                  date="premium registreringar"
+                  chart={{
+                    labels: ["6 dagar", "5 dagar", "4 dagar", "3 dagar", "2 dagar", "Igår", "Idag"],
+                    datasets: {
+                      label: "Nya premium-användare",
+                      data: [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        newPremiumUsersYesterday.length,
+                        newPremiumUsers.length,
+                      ],
+                    },
+                  }}
                 />
               </MDBox>
             </Grid>
@@ -160,10 +260,10 @@ function Dashboard() {
         <MDBox>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6} lg={8}>
-              <Projects />
+              <RecentUsers />
             </Grid>
             <Grid item xs={12} md={6} lg={4}>
-              <OrdersOverview />
+              <UserActivity />
             </Grid>
           </Grid>
         </MDBox>

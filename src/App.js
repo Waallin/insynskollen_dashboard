@@ -47,22 +47,21 @@ import createCache from "@emotion/cache";
 import routes from "routes";
 
 import { database } from "../src/firebase";
-import { collection, getDocs } from "firebase/firestore";
-
+import { collection, getDoc, getDocs, doc } from "firebase/firestore";
 // Material Dashboard 2 React contexts
 import { useMaterialUIController, setMiniSidenav, setOpenConfigurator } from "context";
-
 // Images
 import brandWhite from "assets/images/logo-ct.png";
 import brandDark from "assets/images/logo-ct-dark.png";
 import { func } from "prop-types";
-
 import useUsersStore from "stores/UseUsersStore";
-import useGamesStore from "stores/UseGamesStore";
+import useDatabaseStore from "stores/useDatabaseStore";
 export default function App() {
   const [controller, dispatch] = useMaterialUIController();
   const { users, setUsers } = useUsersStore();
-  const { setGames, games } = useGamesStore();
+
+  const [allUsers, setAllUsers] = useState([]);
+  const { version, setVersion } = useDatabaseStore();
   const {
     miniSidenav,
     direction,
@@ -155,43 +154,37 @@ export default function App() {
   );
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const snapshot = collection(database, "Users");
-        const usersList = await getDocs(snapshot);
-
-        const usersData = usersList.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        setUsers(usersData);
-      } catch (error) {
-        console.error("Error fetching users: ", error);
-      }
-    };
-
-    const fetchGames = async () => {
-      try {
-        const snapshot = collection(database, "GameRooms");
-        const list = await getDocs(snapshot);
-
-        const gamesData = list.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        console.log(gamesData);
-        setGames(gamesData);
-      } catch (error) {
-        console.error("Error fetching users: ", error);
-      }
-    };
-
-    fetchGames();
     fetchUsers();
+    fetchVersion();
   }, []);
 
+  const fetchUsers = async () => {
+    try {
+      const snapshot = collection(database, "users");
+      const usersList = await getDocs(snapshot);
+
+      const usersData = usersList.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setUsers(usersData);
+
+      console.log("1");
+    } catch (error) {
+      console.error("Error fetching users: ", error);
+    }
+  };
+  const fetchVersion = async () => {
+    try {
+      const snapshot = doc(database, "version_code", "version_code");
+      const version = await getDoc(snapshot);
+
+      setVersion(version.data().version);
+    } catch (error) {
+      console.error("Error fetching version: ", error);
+    }
+  };
   return direction === "rtl" ? (
     <CacheProvider value={rtlCache}>
       <ThemeProvider theme={darkMode ? themeDarkRTL : themeRTL}>
@@ -225,7 +218,7 @@ export default function App() {
           <Sidenav
             color={sidenavColor}
             brand={(transparentSidenav && !darkMode) || whiteSidenav ? brandDark : brandWhite}
-            brandName="Material Dashboard 2"
+            brandName="Insynskollen"
             routes={routes}
             onMouseEnter={handleOnMouseEnter}
             onMouseLeave={handleOnMouseLeave}
