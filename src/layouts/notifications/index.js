@@ -18,80 +18,111 @@ import { useState } from "react";
 // @mui material components
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
+import TextField from "@mui/material/TextField";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import Chip from "@mui/material/Chip";
+import Box from "@mui/material/Box";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
-import MDAlert from "components/MDAlert";
 import MDButton from "components/MDButton";
 import MDSnackbar from "components/MDSnackbar";
+import MDInput from "components/MDInput";
 
 // Material Dashboard 2 React example components
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 
+// Stores
+import useUsersStore from "stores/UseUsersStore";
+
 function Notifications() {
+  const { users } = useUsersStore();
+  const [message, setMessage] = useState("");
+  const [title, setTitle] = useState("");
+  const [targetAudience, setTargetAudience] = useState("all");
+  const [isLoading, setIsLoading] = useState(false);
   const [successSB, setSuccessSB] = useState(false);
-  const [infoSB, setInfoSB] = useState(false);
-  const [warningSB, setWarningSB] = useState(false);
   const [errorSB, setErrorSB] = useState(false);
 
   const openSuccessSB = () => setSuccessSB(true);
   const closeSuccessSB = () => setSuccessSB(false);
-  const openInfoSB = () => setInfoSB(true);
-  const closeInfoSB = () => setInfoSB(false);
-  const openWarningSB = () => setWarningSB(true);
-  const closeWarningSB = () => setWarningSB(false);
   const openErrorSB = () => setErrorSB(true);
   const closeErrorSB = () => setErrorSB(false);
 
-  const alertContent = (name) => (
-    <MDTypography variant="body2" color="white">
-      A simple {name} alert with{" "}
-      <MDTypography component="a" href="#" variant="body2" fontWeight="medium" color="white">
-        an example link
-      </MDTypography>
-      . Give it a click if you like.
-    </MDTypography>
-  );
+  // Beräkna målgrupp
+  const getTargetUsers = () => {
+    switch (targetAudience) {
+      case "premium":
+        return (
+          users?.filter(
+            (user) => user?.revenueCatCustomerInfo?.entitlements?.active?.premium?.isActive === true
+          ) || []
+        );
+      case "active":
+        return (
+          users?.filter((user) => {
+            if (!user.lastLoggedIn?.seconds) return false;
+            const lastActive = new Date(user.lastLoggedIn.seconds * 1000);
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            return lastActive > sevenDaysAgo;
+          }) || []
+        );
+      case "notifications_enabled":
+        return users?.filter((user) => user.notificationsEnabled === true) || [];
+      default:
+        return users || [];
+    }
+  };
+
+  const targetUsers = getTargetUsers();
+  const usersWithPushTokens = targetUsers.filter((user) => user.pushToken);
+
+  const handleSendNotification = async () => {
+    if (!title.trim() || !message.trim()) {
+      openErrorSB();
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Här skulle du implementera din push-notifikationslogik
+      // Till exempel anropa en API som skickar till Expo Push Service
+      console.log("Skickar notifikation till:", usersWithPushTokens.length, "användare");
+      console.log("Titel:", title);
+      console.log("Meddelande:", message);
+      console.log("Målgrupp:", getTargetUsers("notifications_enabled"));
+
+      // Simulera API-anrop
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      setTitle("");
+      setMessage("");
+      openSuccessSB();
+    } catch (error) {
+      console.error("Fel vid skickande av notifikation:", error);
+      openErrorSB();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const renderSuccessSB = (
     <MDSnackbar
       color="success"
       icon="check"
-      title="Material Dashboard"
-      content="Hello, world! This is a notification message"
-      dateTime="11 mins ago"
+      title="Notifikation skickad"
+      content={`Push-notifikation skickades till ${usersWithPushTokens.length} användare`}
+      dateTime="Nu"
       open={successSB}
       onClose={closeSuccessSB}
       close={closeSuccessSB}
-      bgWhite
-    />
-  );
-
-  const renderInfoSB = (
-    <MDSnackbar
-      icon="notifications"
-      title="Material Dashboard"
-      content="Hello, world! This is a notification message"
-      dateTime="11 mins ago"
-      open={infoSB}
-      onClose={closeInfoSB}
-      close={closeInfoSB}
-    />
-  );
-
-  const renderWarningSB = (
-    <MDSnackbar
-      color="warning"
-      icon="star"
-      title="Material Dashboard"
-      content="Hello, world! This is a notification message"
-      dateTime="11 mins ago"
-      open={warningSB}
-      onClose={closeWarningSB}
-      close={closeWarningSB}
       bgWhite
     />
   );
@@ -100,9 +131,9 @@ function Notifications() {
     <MDSnackbar
       color="error"
       icon="warning"
-      title="Material Dashboard"
-      content="Hello, world! This is a notification message"
-      dateTime="11 mins ago"
+      title="Fel"
+      content="Kunde inte skicka notifikation. Kontrollera att titel och meddelande är ifyllda."
+      dateTime="Nu"
       open={errorSB}
       onClose={closeErrorSB}
       close={closeErrorSB}
@@ -117,71 +148,83 @@ function Notifications() {
         <Grid container spacing={3} justifyContent="center">
           <Grid item xs={12} lg={8}>
             <Card>
-              <MDBox p={2}>
-                <MDTypography variant="h5">Alerts</MDTypography>
-              </MDBox>
-              <MDBox pt={2} px={2}>
-                <MDAlert color="primary" dismissible>
-                  {alertContent("primary")}
-                </MDAlert>
-                <MDAlert color="secondary" dismissible>
-                  {alertContent("secondary")}
-                </MDAlert>
-                <MDAlert color="success" dismissible>
-                  {alertContent("success")}
-                </MDAlert>
-                <MDAlert color="error" dismissible>
-                  {alertContent("error")}
-                </MDAlert>
-                <MDAlert color="warning" dismissible>
-                  {alertContent("warning")}
-                </MDAlert>
-                <MDAlert color="info" dismissible>
-                  {alertContent("info")}
-                </MDAlert>
-                <MDAlert color="light" dismissible>
-                  {alertContent("light")}
-                </MDAlert>
-                <MDAlert color="dark" dismissible>
-                  {alertContent("dark")}
-                </MDAlert>
-              </MDBox>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} lg={8}>
-            <Card>
-              <MDBox p={2} lineHeight={0}>
-                <MDTypography variant="h5">Notifications</MDTypography>
-                <MDTypography variant="button" color="text" fontWeight="regular">
-                  Notifications on this page use Toasts from Bootstrap. Read more details here.
+              <MDBox p={3}>
+                <MDTypography variant="h5" fontWeight="medium" mb={2}>
+                  Push-notifikationer
                 </MDTypography>
-              </MDBox>
-              <MDBox p={2}>
+                <MDTypography variant="body2" color="text" mb={3}>
+                  Skicka push-notifikationer till dina användare
+                </MDTypography>
+
                 <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6} lg={3}>
-                    <MDButton variant="gradient" color="success" onClick={openSuccessSB} fullWidth>
-                      success notification
-                    </MDButton>
-                    {renderSuccessSB}
+                  <Grid item xs={12}>
+                    <MDInput
+                      label="Titel"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      fullWidth
+                      placeholder="Ange titel för notifikationen"
+                    />
                   </Grid>
-                  <Grid item xs={12} sm={6} lg={3}>
-                    <MDButton variant="gradient" color="info" onClick={openInfoSB} fullWidth>
-                      info notification
-                    </MDButton>
-                    {renderInfoSB}
+
+                  <Grid item xs={12}>
+                    <TextField
+                      label="Meddelande"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      fullWidth
+                      multiline
+                      rows={4}
+                      placeholder="Skriv ditt meddelande här..."
+                      variant="outlined"
+                    />
                   </Grid>
-                  <Grid item xs={12} sm={6} lg={3}>
-                    <MDButton variant="gradient" color="warning" onClick={openWarningSB} fullWidth>
-                      warning notification
-                    </MDButton>
-                    {renderWarningSB}
+
+                  <Grid item xs={12}>
+                    <FormControl fullWidth>
+                      <InputLabel>Målgrupp</InputLabel>
+                      <Select
+                        value={targetAudience}
+                        onChange={(e) => setTargetAudience(e.target.value)}
+                        label="Målgrupp"
+                      >
+                        <MenuItem value="all">Alla användare</MenuItem>
+                        <MenuItem value="premium">Premium-användare</MenuItem>
+                        <MenuItem value="active">Aktiva användare (7 dagar)</MenuItem>
+                        <MenuItem value="notifications_enabled">
+                          Användare med notifikationer aktiverade
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
                   </Grid>
-                  <Grid item xs={12} sm={6} lg={3}>
-                    <MDButton variant="gradient" color="error" onClick={openErrorSB} fullWidth>
-                      error notification
+
+                  <Grid item xs={12}>
+                    <Box display="flex" gap={1} flexWrap="wrap" mb={2}>
+                      <Chip
+                        label={`${targetUsers.length} användare i målgrupp`}
+                        color="primary"
+                        variant="outlined"
+                      />
+                      <Chip
+                        label={`${usersWithPushTokens.length} med push-tokens`}
+                        color="success"
+                        variant="outlined"
+                      />
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <MDButton
+                      variant="gradient"
+                      color="info"
+                      onClick={handleSendNotification}
+                      disabled={isLoading || !title.trim() || !message.trim()}
+                      fullWidth
+                    >
+                      {isLoading
+                        ? "Skickar..."
+                        : `Skicka till ${usersWithPushTokens.length} användare`}
                     </MDButton>
-                    {renderErrorSB}
                   </Grid>
                 </Grid>
               </MDBox>
@@ -190,6 +233,8 @@ function Notifications() {
         </Grid>
       </MDBox>
       <Footer />
+      {renderSuccessSB}
+      {renderErrorSB}
     </DashboardLayout>
   );
 }

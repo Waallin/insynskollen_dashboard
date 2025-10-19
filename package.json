@@ -1,5 +1,6 @@
 {
   "name": "material-dashboard-2-react",
+  "homepage": "https://waallin.github.io/insynskollen_dashboard",
   "version": "2.2.0",
   "private": true,
   "author": "Creative Tim",
@@ -20,6 +21,7 @@
     "@mui/material": "5.12.3",
     "chart.js": "4.3.0",
     "chroma-js": "2.4.2",
+    "expo-server-sdk": "^4.0.0",
     "firebase": "^10.12.3",
     "prop-types": "15.8.1",
     "react": "18.2.0",
@@ -39,7 +41,9 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "install:clean": "rm -rf node_modules/ && rm -rf package-lock.json && npm install && npm start"
+    "install:clean": "rm -rf node_modules/ && rm -rf package-lock.json && npm install && npm start",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
@@ -68,6 +72,7 @@
     "eslint-plugin-prettier": "4.2.1",
     "eslint-plugin-react": "7.32.2",
     "eslint-plugin-react-hooks": "4.6.0",
+    "gh-pages": "^6.3.0",
     "prettier": "2.8.8"
   },
   "overrides": {

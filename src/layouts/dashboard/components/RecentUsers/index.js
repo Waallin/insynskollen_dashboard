@@ -34,13 +34,23 @@ function RecentUsers() {
   const { users } = useUsersStore();
   const { version } = useDatabaseStore();
 
-  // Sortera användare efter registreringsdatum och ta de 5 senaste
-  const recentUsers =
-    users
-      ?.sort(
-        (a, b) => new Date(b.createdAt?.seconds * 1000) - new Date(a.createdAt?.seconds * 1000)
-      )
-      ?.slice(0, 5) || [];
+  // Filtrera användare som registrerades idag
+  const todayUsers =
+    users?.filter((user) => {
+      if (!user.createdAt?.seconds) return false;
+      const userDate = new Date(user.createdAt.seconds * 1000);
+      const today = new Date();
+
+      // Jämför endast datum (inte tid)
+      const userDateOnly = new Date(
+        userDate.getFullYear(),
+        userDate.getMonth(),
+        userDate.getDate()
+      );
+      const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+      return userDateOnly.getTime() === todayOnly.getTime();
+    }) || [];
 
   function getPlatformIcon(platform) {
     switch (platform?.toLowerCase()) {
@@ -88,12 +98,12 @@ function RecentUsers() {
     <Card sx={{ height: "100%" }}>
       <MDBox pt={3} px={3}>
         <MDTypography variant="h6" fontWeight="medium">
-          Senaste användare
+          Dagens registreringar
         </MDTypography>
         <MDBox mt={0} mb={2}>
           <MDTypography variant="button" color="text" fontWeight="regular">
             <Icon sx={{ fontWeight: "bold", verticalAlign: "middle" }}>trending_up</Icon>
-            &nbsp;Senaste 5 registreringar
+            &nbsp;Dagens registreringar
           </MDTypography>
         </MDBox>
       </MDBox>
@@ -119,8 +129,8 @@ function RecentUsers() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {recentUsers.length > 0 ? (
-              recentUsers.map((user, index) => (
+            {todayUsers.length > 0 ? (
+              todayUsers.map((user, index) => (
                 <TableRow key={user.id || index}>
                   <TableCell>
                     <MDBox display="flex" alignItems="center" lineHeight={1}>
@@ -173,7 +183,7 @@ function RecentUsers() {
               <TableRow>
                 <TableCell colSpan={3}>
                   <MDTypography variant="body2" color="text" textAlign="center" py={2}>
-                    Inga användare hittades
+                    Inga registreringar idag
                   </MDTypography>
                 </TableCell>
               </TableRow>

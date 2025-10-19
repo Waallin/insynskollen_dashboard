@@ -26,6 +26,7 @@ import useUsersStore from "stores/UseUsersStore";
 
 export default function data() {
   const { users, setUsers } = useUsersStore();
+  console.log("🚀 ~ data ~ users:", users);
   const { version } = useDatabaseStore();
 
   const sortedUsers =
@@ -129,12 +130,13 @@ export default function data() {
 
   return {
     columns: [
-      { Header: "Användare", accessor: "author", width: "30%", align: "left" },
-      { Header: "Registrerad", accessor: "registered", width: "12%", align: "center" },
-      { Header: "Premium", accessor: "subscription", width: "15%", align: "center" },
-      { Header: "Senast aktiv", accessor: "lastActive", width: "12%", align: "center" },
+      { Header: "Användare", accessor: "author", width: "25%", align: "left" },
+      { Header: "Registrerad", accessor: "registered", width: "10%", align: "center" },
+      { Header: "Premium", accessor: "subscription", width: "12%", align: "center" },
+      { Header: "AI Credits", accessor: "aiCredits", width: "10%", align: "center" },
+      { Header: "Senast aktiv", accessor: "lastActive", width: "10%", align: "center" },
       { Header: "Version", accessor: "version", width: "8%", align: "center" },
-      { Header: "Platform", accessor: "platform", width: "15%", align: "center" },
+      { Header: "Platform", accessor: "platform", width: "12%", align: "center" },
       { Header: "Åtgärd", accessor: "action", width: "8%", align: "center" },
     ],
 
@@ -151,6 +153,20 @@ export default function data() {
         />
       ),
       subscription: <SubscriptionInfo revenueCatCustomerInfo={user.revenueCatCustomerInfo} />,
+      aiCredits: (
+        <MDBadge
+          badgeContent={user.aiCredits || 0}
+          color={
+            user.aiCredits >= 1 && user.aiCredits <= 6
+              ? "warning"
+              : user.aiCredits >= 9
+              ? "success"
+              : "warning"
+          }
+          variant="gradient"
+          size="sm"
+        />
+      ),
       lastActive: (
         <MDBadge
           badgeContent={getLastActiveDays(user.lastLoggedIn).text}
