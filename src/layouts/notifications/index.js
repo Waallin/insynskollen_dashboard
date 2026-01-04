@@ -58,11 +58,23 @@ function Notifications() {
   // Beräkna målgrupp
   const getTargetUsers = () => {
     switch (targetAudience) {
-      case "premium":
+      case "new_today":
         return (
-          users?.filter(
-            (user) => user?.revenueCatCustomerInfo?.entitlements?.active?.premium?.isActive === true
-          ) || []
+          users?.filter((user) => {
+            if (!user.createdAt?.seconds) return false;
+            const createdAtDate = new Date(user.createdAt.seconds * 1000);
+            const today = new Date();
+
+            const createdAtOnly = new Date(
+              createdAtDate.getFullYear(),
+              createdAtDate.getMonth(),
+              createdAtDate.getDate()
+            );
+
+            const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+            return createdAtOnly.getTime() === todayOnly.getTime();
+          }) || []
         );
       case "active":
         return (
@@ -189,7 +201,7 @@ function Notifications() {
                         label="Målgrupp"
                       >
                         <MenuItem value="all">Alla användare</MenuItem>
-                        <MenuItem value="premium">Premium-användare</MenuItem>
+                        <MenuItem value="new_today">Nya användare (idag)</MenuItem>
                         <MenuItem value="active">Aktiva användare (7 dagar)</MenuItem>
                         <MenuItem value="notifications_enabled">
                           Användare med notifikationer aktiverade

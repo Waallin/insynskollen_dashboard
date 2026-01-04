@@ -71,6 +71,14 @@ function Dashboard() {
       if (!user.lastLoggedIn?.seconds) return false;
       const lastActive = new Date(user.lastLoggedIn.seconds * 1000);
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Exkludera användare som bara varit aktiva samma dag som kontot skapades
+      const createdAt =
+        user.createdAt?.seconds != null ? new Date(user.createdAt.seconds * 1000) : null;
+      if (createdAt && createdAt.toDateString() === lastActive.toDateString()) {
+        return false;
+      }
+
       return lastActive > sevenDaysAgo;
     }) || [];
 
@@ -97,6 +105,71 @@ function Dashboard() {
       const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
       return userDate === yesterdayDate;
     }) || [];
+
+  // Historik senaste 7 dagarna (totala registreringar)
+  const today = new Date();
+  const last7DaysLabels = [];
+  const last7DaysKeys = [];
+
+  for (let i = 6; i >= 0; i -= 1) {
+    const date = new Date();
+    date.setDate(today.getDate() - i);
+    const key = date.toDateString();
+    last7DaysKeys.push(key);
+
+    if (i === 0) {
+      last7DaysLabels.push("Idag");
+    } else if (i === 1) {
+      last7DaysLabels.push("Igår");
+    } else {
+      last7DaysLabels.push(`${i} dagar`);
+    }
+  }
+
+  const registrationsByDate = last7DaysKeys.reduce(
+    (acc, key) => ({
+      ...acc,
+      [key]: 0,
+    }),
+    {}
+  );
+
+  users?.forEach((user) => {
+    if (!user.createdAt?.seconds) return;
+    const dateKey = new Date(user.createdAt.seconds * 1000).toDateString();
+    if (registrationsByDate[dateKey] !== undefined) {
+      registrationsByDate[dateKey] += 1;
+    }
+  });
+
+  const weeklyRegistrations = last7DaysKeys.map((key) => registrationsByDate[key] || 0);
+
+  // Historik senaste 7 dagarna (aktiva användare)
+  const activeByDate = last7DaysKeys.reduce(
+    (acc, key) => ({
+      ...acc,
+      [key]: 0,
+    }),
+    {}
+  );
+
+  users?.forEach((user) => {
+    if (!user.lastLoggedIn?.seconds) return;
+
+    const lastActiveDate = new Date(user.lastLoggedIn.seconds * 1000);
+    const dateKey = lastActiveDate.toDateString();
+
+    const createdAtDate =
+      user.createdAt?.seconds != null ? new Date(user.createdAt.seconds * 1000) : null;
+    // Exkludera användare som bara varit aktiva samma dag som kontot skapades
+    if (createdAtDate && createdAtDate.toDateString() === dateKey) return;
+
+    if (activeByDate[dateKey] !== undefined) {
+      activeByDate[dateKey] += 1;
+    }
+  });
+
+  const weeklyActiveUsers = last7DaysKeys.map((key) => activeByDate[key] || 0);
 
   // Beräkna procentuell tillväxt
   const userGrowthPercentage =
@@ -129,12 +202,12 @@ function Dashboard() {
               <ComplexStatisticsCard
                 color="success"
                 icon="trending_up"
-                title="Premium-användare"
-                count={premiumUsers.length}
+                title="Nya användare (idag)"
+                count={usersToday.length}
                 percentage={{
                   color: "success",
                   amount:
-                    users?.length > 0 ? Math.round((premiumUsers.length / users.length) * 100) : 0,
+                    users?.length > 0 ? Math.round((usersToday.length / users.length) * 100) : 0,
                   label: "% av totala användare",
                 }}
               />
@@ -184,7 +257,7 @@ function Dashboard() {
                   description={`${iosUsers.length} iOS, ${androidUsers.length} Android`}
                   date="användare per plattform"
                   chart={{
-                    labels: ["iOS", "Android", "Okänd"],
+                    labels: ["iOS", "Android"],
                     datasets: {
                       label: "Användare",
                       data: [
@@ -209,18 +282,10 @@ function Dashboard() {
                   }
                   date="registreringar"
                   chart={{
-                    labels: ["6 dagar", "5 dagar", "4 dagar", "3 dagar", "2 dagar", "Igår", "Idag"],
+                    labels: last7DaysLabels,
                     datasets: {
                       label: "Nya användare",
-                      data: [
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        usersYesterday.length,
-                        usersToday.length, // Du kan lägga till mer historisk data här
-                      ],
+                      data: weeklyRegistrations,
                     },
                   }}
                 />
@@ -230,26 +295,19 @@ function Dashboard() {
               <MDBox mb={3}>
                 <ReportsLineChart
                   color="warning"
-                  title="Nya premium-användare"
+                  title="Aktiva användare"
                   description={
                     <>
-                      <strong>{newPremiumUsers.length}</strong> nya premium-användare idag
+                      <strong>{weeklyActiveUsers[weeklyActiveUsers.length - 1] || 0}</strong> aktiva
+                      användare idag
                     </>
                   }
-                  date="premium registreringar"
+                  date="aktiva användare (senaste 7 dagar)"
                   chart={{
-                    labels: ["6 dagar", "5 dagar", "4 dagar", "3 dagar", "2 dagar", "Igår", "Idag"],
+                    labels: last7DaysLabels,
                     datasets: {
-                      label: "Nya premium-användare",
-                      data: [
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        newPremiumUsersYesterday.length,
-                        newPremiumUsers.length,
-                      ],
+                      label: "Aktiva användare",
+                      data: weeklyActiveUsers,
                     },
                   }}
                 />

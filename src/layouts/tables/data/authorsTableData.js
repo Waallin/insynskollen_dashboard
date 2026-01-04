@@ -132,12 +132,12 @@ export default function data() {
     columns: [
       { Header: "Användare", accessor: "author", width: "25%", align: "left" },
       { Header: "Registrerad", accessor: "registered", width: "10%", align: "center" },
+      { Header: "Senast aktiv", accessor: "lastActive", width: "10%", align: "center" },
       { Header: "Premium", accessor: "subscription", width: "12%", align: "center" },
       { Header: "AI Credits", accessor: "aiCredits", width: "10%", align: "center" },
-      { Header: "Senast aktiv", accessor: "lastActive", width: "10%", align: "center" },
       { Header: "Version", accessor: "version", width: "8%", align: "center" },
       { Header: "Platform", accessor: "platform", width: "12%", align: "center" },
-      { Header: "Åtgärd", accessor: "action", width: "8%", align: "center" },
+      { Header: "Följer", accessor: "following", width: "8%", align: "center" },
     ],
 
     rows: sortedUsers.map((user) => ({
@@ -155,13 +155,13 @@ export default function data() {
       subscription: <SubscriptionInfo revenueCatCustomerInfo={user.revenueCatCustomerInfo} />,
       aiCredits: (
         <MDBadge
-          badgeContent={user.aiCredits || 0}
+          badgeContent={user.aiCredits || "0"}
           color={
-            user.aiCredits >= 1 && user.aiCredits <= 6
+            !user.aiCredits
               ? "warning"
-              : user.aiCredits >= 9
-              ? "success"
-              : "warning"
+              : user.aiCredits >= 1 && user.aiCredits <= 5
+              ? "info"
+              : "success"
           }
           variant="gradient"
           size="sm"
@@ -199,17 +199,13 @@ export default function data() {
           size="sm"
         />
       ),
-      action: (
-        <MDTypography
-          component="a"
-          href="#"
-          variant="caption"
-          color="primary"
-          fontWeight="medium"
-          sx={{ cursor: "pointer" }}
-        >
-          Redigera
-        </MDTypography>
+      following: (
+        <MDBadge
+          badgeContent={user.instruments?.length || "0"}
+          color={user.instruments?.length > 0 ? "success" : "warning"}
+          variant="gradient"
+          size="sm"
+        />
       ),
     })),
   };
