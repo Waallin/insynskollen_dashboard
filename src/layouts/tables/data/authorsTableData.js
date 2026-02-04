@@ -133,11 +133,10 @@ export default function data() {
       { Header: "Användare", accessor: "author", width: "25%", align: "left" },
       { Header: "Registrerad", accessor: "registered", width: "10%", align: "center" },
       { Header: "Senast aktiv", accessor: "lastActive", width: "10%", align: "center" },
+      { Header: "Öppningar", accessor: "totalAppsOpen", width: "8%", align: "center" },
       { Header: "Premium", accessor: "subscription", width: "12%", align: "center" },
-      { Header: "AI Credits", accessor: "aiCredits", width: "10%", align: "center" },
       { Header: "Version", accessor: "version", width: "8%", align: "center" },
       { Header: "Platform", accessor: "platform", width: "12%", align: "center" },
-      { Header: "Följer", accessor: "following", width: "8%", align: "center" },
     ],
 
     rows: sortedUsers.map((user) => ({
@@ -153,20 +152,6 @@ export default function data() {
         />
       ),
       subscription: <SubscriptionInfo revenueCatCustomerInfo={user.revenueCatCustomerInfo} />,
-      aiCredits: (
-        <MDBadge
-          badgeContent={user.aiCredits || "0"}
-          color={
-            !user.aiCredits
-              ? "warning"
-              : user.aiCredits >= 1 && user.aiCredits <= 5
-              ? "info"
-              : "success"
-          }
-          variant="gradient"
-          size="sm"
-        />
-      ),
       lastActive: (
         <MDBadge
           badgeContent={getLastActiveDays(user.lastLoggedIn).text}
@@ -199,10 +184,10 @@ export default function data() {
           size="sm"
         />
       ),
-      following: (
+      totalAppsOpen: (
         <MDBadge
-          badgeContent={user.instruments?.length || "0"}
-          color={user.instruments?.length > 0 ? "success" : "warning"}
+          badgeContent={user.totalAppsOpen ?? 0}
+          color={user.totalAppsOpen && user.totalAppsOpen > 0 ? "success" : "warning"}
           variant="gradient"
           size="sm"
         />
