@@ -13,6 +13,8 @@ Coded by www.creative-tim.com
 * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 */
 
+import { useState, useMemo } from "react";
+
 // @mui material components
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
@@ -20,6 +22,7 @@ import Card from "@mui/material/Card";
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
+import MDButton from "components/MDButton";
 
 // Material Dashboard 2 React example components
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
@@ -38,6 +41,24 @@ function Tables() {
   const navigate = useNavigate();
   const { columns, rows } = authorsTableData();
   const { columns: pColumns, rows: pRows } = projectsTableData();
+
+  const [premiumFilter, setPremiumFilter] = useState("all");
+
+  const filteredRows = useMemo(() => {
+    if (premiumFilter === "active") {
+      return rows.filter(
+        (row) => row.user?.revenueCatCustomerInfo?.activeSubscriptions?.length > 0
+      );
+    }
+
+    if (premiumFilter === "none") {
+      return rows.filter(
+        (row) => !row.user?.revenueCatCustomerInfo?.activeSubscriptions?.length
+      );
+    }
+
+    return rows;
+  }, [rows, premiumFilter]);
 
   const handleRowClick = (row) => {
     const user = row.user || row;
@@ -62,13 +83,41 @@ function Tables() {
                 borderRadius="lg"
                 coloredShadow="info"
               >
-                <MDTypography variant="h6" color="white">
-                  Users
-                </MDTypography>
+                <MDBox display="flex" justifyContent="space-between" alignItems="center">
+                  <MDTypography variant="h6" color="white">
+                    Users
+                  </MDTypography>
+                  <MDBox display="flex" gap={1}>
+                    <MDButton
+                      variant={premiumFilter === "all" ? "contained" : "outlined"}
+                      color="white"
+                      size="small"
+                      onClick={() => setPremiumFilter("all")}
+                    >
+                      Alla
+                    </MDButton>
+                    <MDButton
+                      variant={premiumFilter === "active" ? "contained" : "outlined"}
+                      color="white"
+                      size="small"
+                      onClick={() => setPremiumFilter("active")}
+                    >
+                      Aktiv premium
+                    </MDButton>
+                    <MDButton
+                      variant={premiumFilter === "none" ? "contained" : "outlined"}
+                      color="white"
+                      size="small"
+                      onClick={() => setPremiumFilter("none")}
+                    >
+                      Ingen premium
+                    </MDButton>
+                  </MDBox>
+                </MDBox>
               </MDBox>
               <MDBox pt={3}>
                 <DataTable
-                  table={{ columns, rows }}
+                  table={{ columns, rows: filteredRows }}
                   isSorted={true}
                   canSearch
                   entriesPerPage={false}
