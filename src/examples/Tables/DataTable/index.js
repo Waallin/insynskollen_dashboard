@@ -49,10 +49,19 @@ function DataTable({
   noEndBorder,
   onRowClick,
 }) {
-  const defaultValue = entriesPerPage.defaultValue ? entriesPerPage.defaultValue : 10;
-  const entries = entriesPerPage.entries
-    ? entriesPerPage.entries.map((el) => el.toString())
-    : ["5", "10", "15", "20", "25"];
+  const isEntriesObject = typeof entriesPerPage === "object" && entriesPerPage !== null;
+
+  const defaultValue =
+    entriesPerPage === false
+      ? 100
+      : isEntriesObject && entriesPerPage.defaultValue
+      ? entriesPerPage.defaultValue
+      : 10;
+
+  const entries =
+    isEntriesObject && Array.isArray(entriesPerPage.entries)
+      ? entriesPerPage.entries.map((el) => el.toString())
+      : ["5", "10", "15", "20", "25"];
   const columns = useMemo(() => table.columns, [table]);
   const data = useMemo(() => table.rows, [table]);
 
@@ -82,7 +91,10 @@ function DataTable({
   } = tableInstance;
 
   // Set the default value for the entries per page when component mounts
-  useEffect(() => setPageSize(defaultValue || 10), [defaultValue]);
+  // If entriesPerPage is false, we hide the control but keep a fixed page size
+  useEffect(() => {
+    setPageSize(defaultValue || 10);
+  }, [defaultValue, setPageSize]);
 
   // Set the entries per page value based on the select value
   const setEntriesPerPage = (value) => setPageSize(value);
