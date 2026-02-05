@@ -13,7 +13,7 @@ Coded by www.creative-tim.com
 * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 */
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useCallback } from "react";
 
 // prop-types is a library for typechecking of props
 import PropTypes from "prop-types";
@@ -65,8 +65,33 @@ function DataTable({
   const columns = useMemo(() => table.columns, [table]);
   const data = useMemo(() => table.rows, [table]);
 
+  // Custom global filter: primarily search on user email/name when available
+  const globalFilterFunction = useCallback((rows, columnIds, filterValue) => {
+    if (!filterValue) return rows;
+
+    const searchValue = String(filterValue).toLowerCase();
+
+    return rows.filter((row) => {
+      const original = row.original || {};
+      const user = original.user || {};
+      const email = (user.email || "").toLowerCase();
+      const namePart = email.split("@")[0] || "";
+
+      if (email.includes(searchValue) || namePart.includes(searchValue)) {
+        return true;
+      }
+
+      // Fallback: check all cell values as strings
+      return columnIds.some((id) => {
+        const value = row.values[id];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(searchValue);
+      });
+    });
+  }, []);
+
   const tableInstance = useTable(
-    { columns, data, initialState: { pageIndex: 0 } },
+    { columns, data, initialState: { pageIndex: 0 }, globalFilter: globalFilterFunction },
     useGlobalFilter,
     useSortBy,
     usePagination
@@ -183,13 +208,14 @@ function DataTable({
           {canSearch && (
             <MDBox width="12rem" ml="auto">
               <MDInput
-                placeholder="Search..."
+                placeholder="Sök användare..."
                 value={search}
                 size="small"
                 fullWidth
                 onChange={({ currentTarget }) => {
-                  setSearch(search);
-                  onSearchChange(currentTarget.value);
+                  const value = currentTarget.value;
+                  setSearch(value);
+                  onSearchChange(value);
                 }}
               />
             </MDBox>

@@ -70,6 +70,7 @@ function Tables() {
                 <DataTable
                   table={{ columns, rows }}
                   isSorted={true}
+                  canSearch
                   entriesPerPage={false}
                   showTotalEntries={false}
                   noEndBorder
