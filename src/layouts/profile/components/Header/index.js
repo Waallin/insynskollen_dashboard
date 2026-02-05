@@ -21,48 +21,48 @@ import PropTypes from "prop-types";
 // @mui material components
 import Card from "@mui/material/Card";
 import Grid from "@mui/material/Grid";
-import AppBar from "@mui/material/AppBar";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
-import Icon from "@mui/material/Icon";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
-import MDAvatar from "components/MDAvatar";
 
 // Material Dashboard 2 React base styles
 import breakpoints from "assets/theme/base/breakpoints";
 
 // Images
-import burceMars from "assets/images/bruce-mars.jpg";
 import backgroundImage from "assets/images/bg-profile.jpeg";
 
+// react-router components
+import { useLocation } from "react-router-dom";
+
 function Header({ children }) {
-  const [tabsOrientation, setTabsOrientation] = useState("horizontal");
-  const [tabValue, setTabValue] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const location = useLocation();
+  const user = location.state && location.state.user ? location.state.user : null;
 
   useEffect(() => {
-    // A function that sets the orientation state of the tabs.
-    function handleTabsOrientation() {
-      return window.innerWidth < breakpoints.values.sm
-        ? setTabsOrientation("vertical")
-        : setTabsOrientation("horizontal");
+    function handleResize() {
+      setIsMobile(window.innerWidth < breakpoints.values.sm);
     }
 
-    /** 
-     The event listener that's calling the handleTabsOrientation function when resizing the window.
-    */
-    window.addEventListener("resize", handleTabsOrientation);
+    window.addEventListener("resize", handleResize);
+    handleResize();
 
-    // Call the handleTabsOrientation function to set the state with the initial value.
-    handleTabsOrientation();
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-    // Remove event listener on cleanup
-    return () => window.removeEventListener("resize", handleTabsOrientation);
-  }, [tabsOrientation]);
+  const displayName = user && user.email ? user.email.split("@")[0] : "Användarprofil";
+  const subtitleParts = [];
 
-  const handleSetTabValue = (event, newValue) => setTabValue(newValue);
+  if (user && user.platform) {
+    subtitleParts.push(user.platform);
+  }
+
+  if (user && user.version) {
+    subtitleParts.push(`v${user.version}`);
+  }
+
+  const subtitle = subtitleParts.length > 0 ? subtitleParts.join(" • ") : "Insynskollen-användare";
 
   return (
     <MDBox position="relative" mb={5}>
@@ -75,14 +75,51 @@ function Header({ children }) {
         sx={{
           backgroundImage: ({ functions: { rgba, linearGradient }, palette: { gradients } }) =>
             `${linearGradient(
-              rgba(gradients.info.main, 0.6),
-              rgba(gradients.info.state, 0.6)
+              rgba(gradients.info.main, 0.7),
+              rgba(gradients.info.state, 0.7)
             )}, url(${backgroundImage})`,
           backgroundSize: "cover",
           backgroundPosition: "50%",
           overflow: "hidden",
         }}
-      />
+      >
+        {/* Center displayName in background area with extra styling */}
+        <MDBox
+          position="absolute"
+          top={0}
+          left={0}
+          width="100%"
+          height="100%"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <MDBox
+            px={4}
+            py={2}
+            borderRadius={4}
+            sx={{
+              background: "rgba(0, 0, 0, 0.45)",
+              boxShadow: "0px 6px 32px 0px rgba(0,0,0,0.23)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              backdropFilter: "blur(2.5px)",
+            }}
+          >
+            <MDTypography
+              variant="h2"
+              fontWeight="bold"
+              color="white"
+              sx={{
+                textShadow: "0px 6px 24px rgba(0,0,0,0.35), 0px 2px 0px rgba(0,0,0,0.23)"
+              }}
+            >
+              {displayName}
+            </MDTypography>
+          </MDBox>
+        </MDBox>
+      </MDBox>
       <Card
         sx={{
           position: "relative",
@@ -92,51 +129,6 @@ function Header({ children }) {
           px: 2,
         }}
       >
-        <Grid container spacing={3} alignItems="center">
-          <Grid item>
-            <MDAvatar src={burceMars} alt="profile-image" size="xl" shadow="sm" />
-          </Grid>
-          <Grid item>
-            <MDBox height="100%" mt={0.5} lineHeight={1}>
-              <MDTypography variant="h5" fontWeight="medium">
-                Richard Davis
-              </MDTypography>
-              <MDTypography variant="button" color="text" fontWeight="regular">
-                CEO / Co-Founder
-              </MDTypography>
-            </MDBox>
-          </Grid>
-          <Grid item xs={12} md={6} lg={4} sx={{ ml: "auto" }}>
-            <AppBar position="static">
-              <Tabs orientation={tabsOrientation} value={tabValue} onChange={handleSetTabValue}>
-                <Tab
-                  label="App"
-                  icon={
-                    <Icon fontSize="small" sx={{ mt: -0.25 }}>
-                      home
-                    </Icon>
-                  }
-                />
-                <Tab
-                  label="Message"
-                  icon={
-                    <Icon fontSize="small" sx={{ mt: -0.25 }}>
-                      email
-                    </Icon>
-                  }
-                />
-                <Tab
-                  label="Settings"
-                  icon={
-                    <Icon fontSize="small" sx={{ mt: -0.25 }}>
-                      settings
-                    </Icon>
-                  }
-                />
-              </Tabs>
-            </AppBar>
-          </Grid>
-        </Grid>
         {children}
       </Card>
     </MDBox>

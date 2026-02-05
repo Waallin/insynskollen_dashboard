@@ -140,6 +140,7 @@ export default function data() {
     ],
 
     rows: sortedUsers.map((user) => ({
+      user,
       author: (
         <Author name={user.email?.split("@")[0]} email={user.email} platform={user.platform} />
       ),

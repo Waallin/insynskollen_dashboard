@@ -34,13 +34,15 @@ import colors from "assets/theme/base/colors";
 import typography from "assets/theme/base/typography";
 
 function ProfileInfoCard({ title, description, info, social, action, shadow }) {
+  const safeInfo = info || {};
+  const safeSocial = Array.isArray(social) ? social : [];
   const labels = [];
   const values = [];
   const { socialMediaColors } = colors;
   const { size } = typography;
 
   // Convert this form `objectKey` of the object key in to this `object key`
-  Object.keys(info).forEach((el) => {
+  Object.keys(safeInfo).forEach((el) => {
     if (el.match(/[A-Z\s]+/)) {
       const uppercaseLetter = Array.from(el).find((i) => i.match(/[A-Z]+/));
       const newElement = el.replace(uppercaseLetter, ` ${uppercaseLetter.toLowerCase()}`);
@@ -52,7 +54,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
   });
 
   // Push the object values into the values array
-  Object.values(info).forEach((el) => values.push(el));
+  Object.values(safeInfo).forEach((el) => values.push(el));
 
   // Render the card info items
   const renderItems = labels.map((label, key) => (
@@ -67,7 +69,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
   ));
 
   // Render the card social media icons
-  const renderSocial = social.map(({ link, icon, color }) => (
+  const renderSocial = safeSocial.map(({ link, icon, color }) => (
     <MDBox
       key={color}
       component="a"
@@ -122,6 +124,12 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
 // Setting default props for the ProfileInfoCard
 ProfileInfoCard.defaultProps = {
   shadow: true,
+  info: {},
+  social: [],
+  action: {
+    route: "",
+    tooltip: "",
+  },
 };
 
 // Typechecking props for the ProfileInfoCard

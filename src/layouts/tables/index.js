@@ -27,13 +27,23 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 import DataTable from "examples/Tables/DataTable";
 
+// react-router components
+import { useNavigate } from "react-router-dom";
+
 // Data
 import authorsTableData from "layouts/tables/data/authorsTableData";
 import projectsTableData from "layouts/tables/data/projectsTableData";
 
 function Tables() {
+  const navigate = useNavigate();
   const { columns, rows } = authorsTableData();
   const { columns: pColumns, rows: pRows } = projectsTableData();
+
+  const handleRowClick = (row) => {
+    const user = row.user || row;
+    if (!user) return;
+    navigate("/profile", { state: { user } });
+  };
 
   return (
     <DashboardLayout>
@@ -63,6 +73,7 @@ function Tables() {
                   entriesPerPage={25}
                   showTotalEntries={false}
                   noEndBorder
+                  onRowClick={handleRowClick}
                 />
               </MDBox>
             </Card>
