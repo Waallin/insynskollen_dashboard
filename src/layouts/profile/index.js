@@ -61,12 +61,51 @@ function formatRelativeDate(timestamp) {
   return { text: `${diffDays} dagar sedan`, color: "text" };
 }
 
+function formatRevenueCatDate(dateString) {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return date.toLocaleString("sv-SE");
+}
+
+function mapPeriodType(periodType) {
+  if (!periodType) return "Okänd";
+  switch (periodType) {
+    case "TRIAL":
+      return "Testperiod";
+    case "INTRO":
+      return "Introduktionsperiod";
+    case "NORMAL":
+      return "Ordinarie period";
+    default:
+      return periodType;
+  }
+}
+
+function mapStore(store) {
+  if (!store) return "Okänd";
+  switch (store) {
+    case "APP_STORE":
+      return "App Store";
+    case "MAC_APP_STORE":
+      return "Mac App Store";
+    case "PLAY_STORE":
+      return "Google Play";
+    case "AMAZON":
+      return "Amazon Appstore";
+    case "STRIPE":
+      return "Stripe";
+    default:
+      return store;
+  }
+}
+
 function Overview() {
   const location = useLocation();
   const user = location.state && location.state.user ? location.state.user : null;
+  console.log("🚀 ~ Overview ~ user:", user)
 
   const hasUser = Boolean(user);
-
 
   const registeredInfo = hasUser
     ? formatRelativeDate(user.createdAt)
@@ -80,6 +119,17 @@ function Overview() {
       ? user.revenueCatCustomerInfo.activeSubscriptions.length > 0
       : false;
 
+  const revenueCatInfo =
+    user && user.revenueCatCustomerInfo ? user.revenueCatCustomerInfo : null;
+
+  const premiumEntitlement =
+    revenueCatInfo &&
+    revenueCatInfo.entitlements &&
+    revenueCatInfo.entitlements.active &&
+    revenueCatInfo.entitlements.active.premium
+      ? revenueCatInfo.entitlements.active.premium
+      : null;
+
   const subscriptionStatusBadge = hasActiveSubscription ? (
     <MDBadge badgeContent="Aktiv prenumeration" color="success" variant="gradient" size="sm" />
   ) : (
@@ -87,14 +137,61 @@ function Overview() {
   );
 
   const requestDate =
-    user && user.revenueCatCustomerInfo && user.revenueCatCustomerInfo.requestDate
-      ? new Date(user.revenueCatCustomerInfo.requestDate).toLocaleString()
+    revenueCatInfo && revenueCatInfo.requestDate
+      ? formatRevenueCatDate(revenueCatInfo.requestDate)
       : "N/A";
 
   const latestExpirationDate =
-    user && user.revenueCatCustomerInfo && user.revenueCatCustomerInfo.latestExpirationDate
-      ? user.revenueCatCustomerInfo.latestExpirationDate
+    revenueCatInfo && revenueCatInfo.latestExpirationDate
+      ? formatRevenueCatDate(revenueCatInfo.latestExpirationDate)
       : "N/A";
+
+  const planIdentifier = premiumEntitlement
+    ? premiumEntitlement.productPlanIdentifier || "Okänt"
+    : "Ingen aktiv plan";
+
+  const periodTypeLabel = premiumEntitlement
+    ? mapPeriodType(premiumEntitlement.periodType)
+    : "Ingen aktiv period";
+
+  const periodTypeColor = premiumEntitlement
+    ? premiumEntitlement.periodType === "TRIAL"
+      ? "warning"
+      : premiumEntitlement.periodType === "NORMAL"
+      ? "success"
+      : "info"
+    : "info";
+
+  const storeLabel =
+    (premiumEntitlement && mapStore(premiumEntitlement.store)) ||
+    (revenueCatInfo && mapStore(revenueCatInfo.store)) ||
+    "Okänd";
+
+  const willRenewLabel =
+    premiumEntitlement && typeof premiumEntitlement.willRenew === "boolean"
+      ? premiumEntitlement.willRenew
+        ? "Ja, förnyas automatiskt"
+        : "Nej"
+      : "Okänt";
+
+  const willRenewColor =
+    premiumEntitlement && typeof premiumEntitlement.willRenew === "boolean"
+      ? premiumEntitlement.willRenew
+        ? "success"
+        : "warning"
+      : "info";
+
+  const latestPurchaseDate =
+    premiumEntitlement && premiumEntitlement.latestPurchaseDate
+      ? formatRevenueCatDate(premiumEntitlement.latestPurchaseDate)
+      : "N/A";
+
+  const firstSeen =
+    revenueCatInfo && revenueCatInfo.firstSeen
+      ? formatRevenueCatDate(revenueCatInfo.firstSeen)
+      : "N/A";
+
+  const managementUrl = revenueCatInfo && revenueCatInfo.managementURL;
 
   return (
     <DashboardLayout>
@@ -238,6 +335,9 @@ function Overview() {
                   <MDTypography variant="h6" fontWeight="medium">
                     Prenumeration
                   </MDTypography>
+                  <MDTypography variant="caption" color="text">
+                    Översikt över användarens prenumeration baserad på RevenueCat.
+                  </MDTypography>
                   <MDBox mt={2}>
                     <MDBox
                       display="flex"
@@ -250,21 +350,150 @@ function Overview() {
                       </MDTypography>
                       {subscriptionStatusBadge}
                     </MDBox>
-                    <MDBox mb={1.5}>
+                    <MDBox
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      mb={1.5}
+                    >
                       <MDTypography variant="button" color="text">
-                        Senaste förnyelse / förfallodatum
+                        Plan
                       </MDTypography>
-                      <MDTypography variant="caption" color="text">
-                        {latestExpirationDate}
-                      </MDTypography>
+                      <MDBadge
+                        badgeContent={planIdentifier}
+                        color="info"
+                        variant="gradient"
+                        size="sm"
+                      />
                     </MDBox>
-                    <MDBox>
+                    <MDBox
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      mb={1.5}
+                    >
                       <MDTypography variant="button" color="text">
-                        Senast uppdaterad av RevenueCat
+                        Periodtyp
                       </MDTypography>
-                      <MDTypography variant="caption" color="text">
-                        {requestDate}
+                      <MDBadge
+                        badgeContent={periodTypeLabel}
+                        color={periodTypeColor}
+                        variant="gradient"
+                        size="sm"
+                      />
+                    </MDBox>
+                    <MDBox
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      mb={1.5}
+                    >
+                      <MDTypography variant="button" color="text">
+                        Butik
                       </MDTypography>
+                      <MDBadge
+                        badgeContent={storeLabel}
+                        color="dark"
+                        variant="gradient"
+                        size="sm"
+                      />
+                    </MDBox>
+                    <MDBox
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      mb={1.5}
+                    >
+                      <MDTypography variant="button" color="text">
+                        Förnyas
+                      </MDTypography>
+                      <MDBadge
+                        badgeContent={willRenewLabel}
+                        color={willRenewColor}
+                        variant="gradient"
+                        size="sm"
+                      />
+                    </MDBox>
+                    <MDBox mt={2}>
+                      <MDBox mb={1.5}>
+                        <MDTypography
+                          variant="caption"
+                          color="text"
+                          fontWeight="medium"
+                          textTransform="uppercase"
+                          display="block"
+                        >
+                          Senaste köp
+                        </MDTypography>
+                        <MDTypography variant="button" color="text" display="block">
+                          {latestPurchaseDate}
+                        </MDTypography>
+                      </MDBox>
+                      <MDBox mb={1.5}>
+                        <MDTypography
+                          variant="caption"
+                          color="text"
+                          fontWeight="medium"
+                          textTransform="uppercase"
+                          display="block"
+                        >
+                          Förfallodatum
+                        </MDTypography>
+                        <MDTypography variant="button" color="text" display="block">
+                          {latestExpirationDate}
+                        </MDTypography>
+                      </MDBox>
+                      <MDBox mb={1.5}>
+                        <MDTypography
+                          variant="caption"
+                          color="text"
+                          fontWeight="medium"
+                          textTransform="uppercase"
+                          display="block"
+                        >
+                          RevenueCat senast uppdaterad
+                        </MDTypography>
+                        <MDTypography variant="button" color="text" display="block">
+                          {requestDate}
+                        </MDTypography>
+                      </MDBox>
+                      <MDBox mb={managementUrl ? 1 : 0}>
+                        <MDTypography
+                          variant="caption"
+                          color="text"
+                          fontWeight="medium"
+                          textTransform="uppercase"
+                          display="block"
+                        >
+                          Första gången RevenueCat såg användaren
+                        </MDTypography>
+                        <MDTypography variant="button" color="text" display="block">
+                          {firstSeen}
+                        </MDTypography>
+                      </MDBox>
+                      {managementUrl && (
+                        <MDBox mt={1.5}>
+                          <MDTypography
+                            variant="caption"
+                            color="text"
+                            fontWeight="medium"
+                            textTransform="uppercase"
+                            display="block"
+                          >
+                            Hantera prenumeration
+                          </MDTypography>
+                          <MDTypography variant="button" color="info" display="block">
+                            <a
+                              href={managementUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: "inherit", textDecoration: "underline" }}
+                            >
+                              Öppna butikens hanteringssida
+                            </a>
+                          </MDTypography>
+                        </MDBox>
+                      )}
                     </MDBox>
                   </MDBox>
                 </MDBox>
