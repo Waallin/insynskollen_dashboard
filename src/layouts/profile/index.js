@@ -13,6 +13,8 @@ Coded by www.creative-tim.com
 * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 */
 
+import { useState } from "react";
+
 // @mui material components
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
@@ -32,6 +34,13 @@ import Footer from "examples/Footer";
 
 // Overview page components
 import Header from "layouts/profile/components/Header";
+
+// Firebase
+import { database } from "../../firebase";
+import { doc, updateDoc, Timestamp } from "firebase/firestore";
+
+// Stores
+import useUsersStore from "stores/UseUsersStore";
 
 function formatRelativeDate(timestamp) {
   if (!timestamp || !timestamp.seconds) return { text: "N/A", color: "text" };
@@ -59,6 +68,18 @@ function formatRelativeDate(timestamp) {
   const diffTime = Math.abs(todayOnly - newDateOnly);
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return { text: `${diffDays} dagar sedan`, color: "text" };
+}
+
+function formatAbsoluteDate(timestamp) {
+  if (!timestamp || !timestamp.seconds) return "N/A";
+  const date = new Date(timestamp.seconds * 1000);
+  return date.toLocaleString("sv-SE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatRevenueCatDate(dateString) {
@@ -102,14 +123,19 @@ function mapStore(store) {
 
 function Overview() {
   const location = useLocation();
-  const user = location.state && location.state.user ? location.state.user : null;
-  console.log("🚀 ~ Overview ~ user:", user)
+  const initialUser = location.state && location.state.user ? location.state.user : null;
+  const [user, setUser] = useState(initialUser);
+  const [isEditingRegisteredDate, setIsEditingRegisteredDate] = useState(false);
+  const [registeredDateInput, setRegisteredDateInput] = useState("");
+  const [isSavingRegisteredDate, setIsSavingRegisteredDate] = useState(false);
+  const [registeredDateError, setRegisteredDateError] = useState("");
+  const { users, setUsers } = useUsersStore();
+
+  console.log("🚀 ~ Overview ~ user:", user);
 
   const hasUser = Boolean(user);
 
-  const registeredInfo = hasUser
-    ? formatRelativeDate(user.createdAt)
-    : { text: "N/A", color: "text" };
+  const registeredDate = hasUser ? formatAbsoluteDate(user.createdAt) : "N/A";
   const lastActiveInfo = hasUser
     ? formatRelativeDate(user.lastLoggedIn)
     : { text: "N/A", color: "text" };
@@ -193,6 +219,70 @@ function Overview() {
 
   const managementUrl = revenueCatInfo && revenueCatInfo.managementURL;
 
+  const handleStartEditRegisteredDate = () => {
+    if (user && user.createdAt && user.createdAt.seconds) {
+      const date = new Date(user.createdAt.seconds * 1000);
+      const iso = date.toISOString();
+      const [datePart, timePart] = iso.split("T");
+      const timeWithoutSeconds = timePart.slice(0, 5);
+      setRegisteredDateInput(`${datePart}T${timeWithoutSeconds}`);
+    } else {
+      setRegisteredDateInput("");
+    }
+    setRegisteredDateError("");
+    setIsEditingRegisteredDate(true);
+  };
+
+  const handleCancelEditRegisteredDate = () => {
+    setIsEditingRegisteredDate(false);
+    setRegisteredDateError("");
+  };
+
+  const handleSaveRegisteredDate = async () => {
+    if (!user || !user.id || !registeredDateInput) {
+      setRegisteredDateError("Datum får inte vara tomt.");
+      return;
+    }
+
+    try {
+      setIsSavingRegisteredDate(true);
+      setRegisteredDateError("");
+
+      const newDate = new Date(registeredDateInput);
+      if (Number.isNaN(newDate.getTime())) {
+        setRegisteredDateError("Ogiltigt datum.");
+        setIsSavingRegisteredDate(false);
+        return;
+      }
+
+      const userRef = doc(database, "users", user.id);
+      const newTimestamp = Timestamp.fromDate(newDate);
+
+      await updateDoc(userRef, {
+        createdAt: newTimestamp,
+      });
+
+      const updatedUser = {
+        ...user,
+        createdAt: newTimestamp,
+      };
+
+      setUser(updatedUser);
+
+      if (users && Array.isArray(users)) {
+        const updatedUsers = users.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+        setUsers(updatedUsers);
+      }
+
+      setIsEditingRegisteredDate(false);
+    } catch (error) {
+      console.error("Error updating registered date:", error);
+      setRegisteredDateError("Kunde inte spara datumet. Försök igen.");
+    } finally {
+      setIsSavingRegisteredDate(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       {/* <DashboardNavbar /> */}
@@ -214,41 +304,183 @@ function Overview() {
                   <MDTypography variant="h6" fontWeight="medium">
                     Konto
                   </MDTypography>
+                  <MDTypography variant="caption" color="text">
+                    Användarens konto- och enhetsinformation.
+                  </MDTypography>
                   <MDBox mt={2}>
-                    <MDBox
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      mb={1.5}
-                    >
-                      <MDTypography variant="button" color="text">
+                    <MDBox mb={1.5}>
+                      <MDTypography
+                        variant="caption"
+                        color="text"
+                        fontWeight="medium"
+                        textTransform="uppercase"
+                        display="block"
+                      >
                         E-post
                       </MDTypography>
-                      <MDTypography variant="button" color="text">
-                        {hasUser ? user.email || "N/A" : "N/A"}
+                      <MDTypography variant="button" color="text" display="block">
+                        {hasUser ? user.email || user.mail || "N/A" : "N/A"}
                       </MDTypography>
                     </MDBox>
-                    <MDBox
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      mb={1.5}
-                    >
-                      <MDTypography variant="button" color="text">
+                    <MDBox mb={1.5}>
+                      <MDTypography
+                        variant="caption"
+                        color="text"
+                        fontWeight="medium"
+                        textTransform="uppercase"
+                        display="block"
+                      >
                         Plattform
                       </MDTypography>
-                      <MDTypography variant="button" color="text">
+                      <MDTypography variant="button" color="text" display="block">
                         {hasUser ? user.platform || "N/A" : "N/A"}
                       </MDTypography>
                     </MDBox>
-                    <MDBox display="flex" justifyContent="space-between" alignItems="center">
-                      <MDTypography variant="button" color="text">
+                    <MDBox mb={1.5}>
+                      <MDTypography
+                        variant="caption"
+                        color="text"
+                        fontWeight="medium"
+                        textTransform="uppercase"
+                        display="block"
+                      >
                         Version
                       </MDTypography>
-                      <MDTypography variant="button" color="text">
+                      <MDTypography variant="button" color="text" display="block">
                         {hasUser ? user.version || "N/A" : "N/A"}
                       </MDTypography>
                     </MDBox>
+                    <MDBox mb={1.5}>
+                      <MDTypography
+                        variant="caption"
+                        color="text"
+                        fontWeight="medium"
+                        textTransform="uppercase"
+                        display="block"
+                      >
+                        Notiser
+                      </MDTypography>
+                      <MDBox mt={0.5}>
+                        <MDBadge
+                          badgeContent={
+                            hasUser && user.notificationsEnabled === true ? "På" : "Av"
+                          }
+                          color={
+                            hasUser && user.notificationsEnabled === true
+                              ? "success"
+                              : "warning"
+                          }
+                          variant="gradient"
+                          size="sm"
+                        />
+                      </MDBox>
+                    </MDBox>
+                    <MDBox mb={1.5}>
+                      <MDTypography
+                        variant="caption"
+                        color="text"
+                        fontWeight="medium"
+                        textTransform="uppercase"
+                        display="block"
+                      >
+                        Push-token
+                      </MDTypography>
+                      <MDTypography
+                        variant="button"
+                        color="text"
+                        display="block"
+                        sx={{
+                          fontFamily: "monospace",
+                          fontSize: "0.75rem",
+                          wordBreak: "break-all",
+                          mt: 0.5,
+                        }}
+                      >
+                        {hasUser && user.pushToken ? user.pushToken : "N/A"}
+                      </MDTypography>
+                    </MDBox>
+                    <MDBox>
+                      <MDTypography
+                        variant="caption"
+                        color="text"
+                        fontWeight="medium"
+                        textTransform="uppercase"
+                        display="block"
+                      >
+                        Registrerad
+                      </MDTypography>
+                      <MDBox display="flex" alignItems="center" flexWrap="wrap" mt={0.5}>
+                        <MDTypography variant="button" color="text" display="block">
+                          {registeredDate}
+                        </MDTypography>
+                        {hasUser && (
+                          <MDTypography
+                            variant="caption"
+                            color="info"
+                            sx={{ cursor: "pointer", ml: 1 }}
+                            onClick={handleStartEditRegisteredDate}
+                          >
+                            Redigera
+                          </MDTypography>
+                        )}
+                      </MDBox>
+                    </MDBox>
+                    {isEditingRegisteredDate && (
+                      <MDBox mt={2}>
+                        <MDBox display="flex" alignItems="center" mb={1}>
+                          <input
+                            type="datetime-local"
+                            value={registeredDateInput}
+                            onChange={(event) => setRegisteredDateInput(event.target.value)}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 6,
+                              border: "1px solid #ced4da",
+                              fontSize: "0.875rem",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleSaveRegisteredDate}
+                            disabled={isSavingRegisteredDate}
+                            style={{
+                              marginLeft: 8,
+                              padding: "6px 12px",
+                              borderRadius: 6,
+                              border: "none",
+                              backgroundColor: "#1a73e8",
+                              color: "#fff",
+                              fontSize: "0.75rem",
+                              cursor: isSavingRegisteredDate ? "default" : "pointer",
+                              opacity: isSavingRegisteredDate ? 0.7 : 1,
+                            }}
+                          >
+                            {isSavingRegisteredDate ? "Sparar..." : "Spara"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEditRegisteredDate}
+                            style={{
+                              marginLeft: 8,
+                              padding: "6px 12px",
+                              borderRadius: 6,
+                              border: "none",
+                              backgroundColor: "#e0e0e0",
+                              color: "#333",
+                              fontSize: "0.75rem",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Avbryt
+                          </button>
+                        </MDBox>
+                        {registeredDateError && (
+                          <MDTypography variant="caption" color="error">
+                            {registeredDateError}
+                          </MDTypography>
+                        )}
+                      </MDBox>
+                    )}
                   </MDBox>
                 </MDBox>
               </Card>
@@ -267,22 +499,6 @@ function Overview() {
                     Aktivitet
                   </MDTypography>
                   <MDBox mt={2}>
-                    <MDBox
-                      display="flex"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      mb={1.5}
-                    >
-                      <MDTypography variant="button" color="text">
-                        Registrerad
-                      </MDTypography>
-                      <MDBadge
-                        badgeContent={registeredInfo.text}
-                        color={registeredInfo.color}
-                        variant="gradient"
-                        size="sm"
-                      />
-                    </MDBox>
                     <MDBox
                       display="flex"
                       justifyContent="space-between"
